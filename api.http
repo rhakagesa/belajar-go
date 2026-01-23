@@ -1,0 +1,26 @@
+### Get All Categories
+GET http://localhost:9000/api/categories
+
+### Get Category by ID
+GET http://localhost:9000/api/categories/2
+
+### Update Category
+PUT http://localhost:9000/api/categories/2
+Content-Type: application/json
+
+{
+    "name": "Updated Category",
+    "description": "Updated Category"
+}
+
+### Create Category
+POST http://localhost:9000/api/categories
+Content-Type: application/json
+
+{
+    "name": "New Category Again",
+    "description": "New Category"
+}
+
+### Delete Category
+DELETE http://localhost:9000/api/categories/3

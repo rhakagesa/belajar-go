@@ -1,135 +1,66 @@
 package main
 
 import (
-	"encoding/json"
+	"belajar-go/databases"
+	"belajar-go/handler"
+	"belajar-go/repositories"
+	"belajar-go/services"
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
-type Categories struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
-var categories = []Categories{
-	{ID: 1, Name: "Category 1", Description: "Description 1"},
-	{ID: 2, Name: "Category 2", Description: "Description 2"},
-	{ID: 3, Name: "Category 3", Description: "Description 3"},
-}
-
-func createCategory(w http.ResponseWriter, r *http.Request) {
-	var newCategory Categories
-	err := json.NewDecoder(r.Body).Decode(&newCategory)
-	if err != nil {
-		http.Error(w, "Invalid Request", http.StatusBadRequest)
-		return
-	}
-
-	newCategory.ID = len(categories) + 1
-	categories = append(categories, newCategory)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newCategory)
-}
-
-func getCategory(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(categories)
-}
-
-func getCategoryById(w http.ResponseWriter, r *http.Request) {
-	var idStr = strings.TrimPrefix(r.URL.Path, "/api/categories/")
-	var id, err = strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	for _, category := range categories {
-		if category.ID == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(category)
-			return
-		}
-	}
-
-	http.Error(w, "Category Not Found", http.StatusNotFound)
-}
-
-func updateCategory(w http.ResponseWriter, r *http.Request) {
-	var idStr = strings.TrimPrefix(r.URL.Path, "/api/categories/")
-	var id, err = strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	var updatedCategory Categories
-	err = json.NewDecoder(r.Body).Decode(&updatedCategory)
-	if err != nil {
-		http.Error(w, "Invalid Request", http.StatusBadRequest)
-		return
-	}
-
-	for i := range categories {
-		if categories[i].ID == id {
-			updatedCategory.ID = id
-			categories[i] = updatedCategory
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(categories[i])
-			return
-		}
-	}
-
-	http.Error(w, "Category Not Found", http.StatusNotFound)
-}
-
-func deleteCategory(w http.ResponseWriter, r *http.Request) {
-	var idStr = strings.TrimPrefix(r.URL.Path, "/api/categories/")
-	var id, err = strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
-		return
-	}
-
-	for i := range categories {
-		if categories[i].ID == id {
-			categories = append(categories[:i], categories[i+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"message": "Category Deleted"})
-			return
-		}
-	}
+type Config struct {
+	Port    string `mapstructure:"PORT"`
+	DB      string `mapstructure:"DB_CONN"`
+	API_URL string `mapstructure:"API_URL"`
 }
 
 func main() {
-	http.HandleFunc("/api/categories", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			getCategory(w)
-		case "POST":
-			createCategory(w, r)
-		default:
-			getCategory(w)
-		}
-	})
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	http.HandleFunc("/api/categories/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			getCategoryById(w, r)
-		case "PUT":
-			updateCategory(w, r)
-		case "DELETE":
-			deleteCategory(w, r)
-		}
-	})
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
 
-	fmt.Println("Server started on port http://localhost:9000")
-	http.ListenAndServe(":9000", nil)
+	config := Config{
+		Port: viper.GetString("PORT"),
+		DB:   viper.GetString("DB_CONN"),
+	}
+
+	db, err := databases.InitDB(config.DB)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	_, err = databases.Migrate(db)
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+	defer db.Close()
+
+	categoryRepository := repositories.NewCategoryRepository(db)
+	categoryService := services.NewCategoryService(categoryRepository)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+
+	productRepository := repositories.NewProductRepository(db)
+	productService := services.NewProductService(productRepository, categoryRepository)
+	productHandler := handler.NewProductHandler(productService)
+
+	http.HandleFunc("/api/categories", categoryHandler.HandleCategory)
+	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
+	http.HandleFunc("/api/products", productHandler.HandleProduct)
+	http.HandleFunc("/api/products/", productHandler.HandleProductByID)
+
+	fmt.Println("Server started on " + config.API_URL + ":" + config.Port)
+	err = http.ListenAndServe(":"+config.Port, nil)
+
+	if err != nil {
+		fmt.Println("Failed to start server:", err)
+	}
 }

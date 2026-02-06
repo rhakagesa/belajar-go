@@ -50,6 +50,7 @@ func (handler CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	categories, totalData, err := handler.service.GetAll(page, limit)
 	if err != nil {
 		helper.ResponseJson(w, false, http.StatusInternalServerError, err.Error(), nil, nil)
+		return
 	}
 
 	if totalData == 0 {

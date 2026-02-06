@@ -40,6 +40,7 @@ func (handler ProductHandler) HandleProductByID(w http.ResponseWriter, r *http.R
 }
 
 func (handler ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
 	page, limit, err := helper.PaginationConverter(r)
 
 	if err != nil {
@@ -47,9 +48,10 @@ func (handler ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	products, totalData, err := handler.service.GetAll(page, limit)
+	products, totalData, err := handler.service.GetAll(page, limit, name)
 	if err != nil {
 		helper.ResponseJson(w, false, http.StatusInternalServerError, err.Error(), nil, nil)
+		return
 	}
 
 	if totalData == 0 {

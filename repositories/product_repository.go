@@ -14,7 +14,7 @@ func NewProductRepository(db *sql.DB) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
-func (repo *ProductRepository) GetAll(page int, limit int) ([]models.Product, int, error) {
+func (repo *ProductRepository) GetAll(page int, limit int, name string) ([]models.Product, int, error) {
 	offset := (page - 1) * limit
 
 	var totalData int
@@ -24,11 +24,17 @@ func (repo *ProductRepository) GetAll(page int, limit int) ([]models.Product, in
 		return nil, 0, err
 	}
 
-	rows, err := repo.db.Query(`
-	SELECT p.id, p.name, p.description, p.price, p.stock, c.id, c.name, c.description 
-	FROM products p 
-	JOIN categories c ON c.id = p.category_id
-	LIMIT $1 OFFSET $2`, limit, offset)
+	where := ""
+	args := []any{limit, offset}
+	if name != "" {
+		where += " WHERE p.name ILIKE $3"
+		args = append(args, "%"+name+"%")
+	}
+
+	query := "SELECT p.id, p.name, p.description, p.price, p.stock, c.id, c.name, c.description FROM products p JOIN categories c ON c.id = p.category_id " + where + " LIMIT $1 OFFSET $2"
+
+	rows, err := repo.db.Query(query, args...)
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -45,6 +51,10 @@ func (repo *ProductRepository) GetAll(page int, limit int) ([]models.Product, in
 		}
 		product.Category = &category
 		products = append(products, product)
+	}
+
+	if len(products) == 0 {
+		return nil, 0, nil
 	}
 
 	return products, totalData, nil

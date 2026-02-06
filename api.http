@@ -5,12 +5,12 @@ GET http://localhost:3000/api/categories?page=1&limit=10
 GET http://localhost:3000/api/categories/1
 
 ### Update Category
-PUT http://localhost:3000/api/categories/2
+PUT http://localhost:3000/api/categories/6
 Content-Type: application/json
 
 {
-    "name": "Updated Category",
-    "description": "Updated Category"
+    "name": "Elektronik",
+    "description": "Elektronik"
 }
 
 ### Create Category
@@ -27,16 +27,15 @@ DELETE http://localhost:3000/api/categories/1
 
 ### Get All Product
 GET http://localhost:3000/api/products?page=1&limit=10
-
 ### Get Product by ID
-GET http://localhost:3000/api/products/1
+GET http://localhost:3000/api/products/2
 
 ### Update Product
 PUT http://localhost:3000/api/products/2
 Content-Type: application/json
 
 {
-    "name": "Updated Product",
+    "name": "Susu",
     "description": "Updated Product Description",
     "price": 15000,
     "stock": 20,
@@ -57,3 +56,27 @@ Content-Type: application/json
 
 ### Delete Product
 DELETE http://localhost:3000/api/products/1
+
+
+### Checkout Items
+POST http://localhost:3000/api/checkout
+Content-Type: application/json
+
+{
+    "items": [
+        {
+            "product_id": 7,
+            "quantity": 0
+        },
+        {
+            "product_id": 7,
+            "quantity": 0
+        }
+    ]
+}
+
+### Report Today
+GET http://localhost:3000/api/reports
+
+### Report Date Filters
+GET http://localhost:3000/api/reports?start_date=2026-01-01&end_date=2026-02-01

@@ -52,6 +52,13 @@ func main() {
 	productService := services.NewProductService(productRepository, categoryRepository)
 	productHandler := handler.NewProductHandler(productService)
 
+	transactionRepository := repositories.NewTransactionRepository(db)
+	transactionService := services.NewTransactionService(transactionRepository, productRepository)
+	transactionHandler := handler.NewTransactionHandler(transactionService)
+
+	http.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
+	http.HandleFunc("/api/reports/today", transactionHandler.HandleReport)
+	http.HandleFunc("/api/reports", transactionHandler.HandleReport)
 	http.HandleFunc("/api/categories", categoryHandler.HandleCategory)
 	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
 	http.HandleFunc("/api/products", productHandler.HandleProduct)
